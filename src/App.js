@@ -1,7 +1,9 @@
 import logo from './logo.svg';
 import './App.css';
-import firebase from "firebase/app";
-import "firebase/firestore";
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
+import 'firebase/compat/auth';
+import { Container,Typography,Box } from '@mui/material';
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -37,22 +39,13 @@ const pc = new RTCPeerConnection(servers);
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Container maxWidth="sm">
+    <Box sx={{ my: 4 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Material UI Create React App example
+      </Typography>
+    </Box>
+  </Container>
   );
 }
 

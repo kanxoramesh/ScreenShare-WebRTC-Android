@@ -3,10 +3,9 @@ FROM node:16-alpine as builder
 WORKDIR /app
 # Copy app files
 COPY . .
-# Install dependencies (npm ci makes sure the exact versions in the lockfile gets installed)
-RUN npm ci 
+RUN yarn install
 # Build the app
-RUN npm run build
+RUN yarn build
 
 # Bundle static assets with nginx
 FROM nginx:1.21.0-alpine as production
