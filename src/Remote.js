@@ -35,11 +35,11 @@ const servers = {
 };
 const pc = new RTCPeerConnection(servers);
 const firestore = firebase.firestore();
-
+pc.addTransceiver('video');
 const remoteControl = firestore.collection("remoteControl");
 const myDoc = remoteControl.doc("rameshremoteID");
-const offerCandidates = myDoc.collection("offer");
-const iceCandidates = myDoc.collection("iceCandidates");
+const myOffer = myDoc.collection("offer");
+const myiceCandidates = myDoc.collection("iceCandidates");
 
 
 function Remote() {
@@ -53,9 +53,20 @@ function Remote() {
     const [error, setError] = useState(false);
 
 
+    async function clearCollection(ref) {
+        ref.onSnapshot((snapshot) => {
+            snapshot.docs.forEach((doc) => {
+                ref.doc(doc.id).delete()
+            })
+        })
+    }
 
     const setStatus = async () => {
         myDoc.set({ "status": true })
+        //clear previous
+        // await clearCollection(myOffer)
+        // await clearCollection(myiceCandidates)
+
     }
     const setRequestToCallee = () => {
         remoteControl.doc(remoteId).set({
@@ -67,6 +78,10 @@ function Remote() {
         remoteControl.doc(remoteId).onSnapshot((snapshot) => {
             const data = snapshot.data();
             if (data?.status) {
+                //update video width height
+                var dWidth = data?.dWidth;
+                var dHeight = data?.dHeight;
+
                 //need to send offer
                 setIceAndOfferCandidates()
 
@@ -78,7 +93,8 @@ function Remote() {
     const setIceAndOfferCandidates = async () => {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                iceCandidates.add(event.candidate.toJSON());
+                var a = event.candidate.toJSON()
+                myiceCandidates.add(a);
             } else {
                 // All ICE candidates have been gathered
                 console.log('ICE Gathering Complete');
@@ -92,14 +108,52 @@ function Remote() {
             type: offerDescription.type,
         };
 
-        await offerCandidates.add(offer);
+        await myOffer.add(offer);
+
+
+        //listen for callee
+        const calleeIceCandidates = remoteControl.doc(remoteId).collection("iceCandidates");
+        const calleeAnswer = remoteControl.doc(remoteId).collection("answer");
+
+        const unsubscribe = remoteControl.doc(remoteId).collection("answer").onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    try {
+                        var a = change.doc.data();
+                        const candidate = new RTCSessionDescription(a);
+                        pc.setRemoteDescription(candidate)
+                            .then(() => {
+                                calleeIceCandidates.onSnapshot((snapshot) => {
+                                    snapshot.docChanges().forEach((change) => {
+                                        if (change.type === "added") {
+                                            var a = change.doc.data()
+                                            const candidate = new RTCIceCandidate(
+                                                a
+                                            );
+                                            pc.addIceCandidate(candidate);
+                                        }
+                                    });
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Error setting remote description:", error);
+                            });
+                    } catch (e) {
+                        console.log("e", e.error)
+                    }
+                }
+            });
+        });
+
 
     }
 
     const callRemote = async () => {
 
     }
-    const disconnectAll = () => {
+    const hangUp = async () => {
+
+        pc.close();
         if (localStream) {
             localStream.getTracks().forEach((track) => {
                 track.stop();
@@ -113,15 +167,14 @@ function Remote() {
         })
         myDoc.update({ "status": false })
 
-    }
+        window.location.reload();
+    };
 
 
     const setupSources = async () => {
         if (connect) {
 
-            disconnectAll()
-
-
+            hangUp()
             return
         }
 
@@ -132,7 +185,7 @@ function Remote() {
         }
 
         //setup status true/ client will check if remote server is ready or not
-        setStatus()
+        await setStatus()
         setRequestToCallee()
 
 
@@ -144,11 +197,13 @@ function Remote() {
                 stream.addTrack(track);
             });
             localRef.current.srcObject = stream;
+            setLocalStream(stream);
+
         };
 
         pc.onconnectionstatechange = (event) => {
             if (pc.connectionState === "disconnected") {
-                /// hangUp();
+                hangUp();
             }
         };
 
@@ -198,11 +253,18 @@ function Remote() {
                 <Button id="connect" variant="contained" onClick={() => setupSources()}>{loading ? "Connecting..." : connect ? 'DisConnect' : "Connect"}</Button>
             </Box>
 
+            <Box display="flex"
+                justifyContent="center"
+                alignItems="center">
+                {
+                    loading ? <CircularProgress color="secondary" /> : null
+                }
+            </Box>
 
             <Box display="flex"
                 justifyContent="center"
                 alignItems="center">
-                {loading ? <CircularProgress color="secondary" /> : <div
+                <div
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseOut={handleMouseOut}
@@ -215,7 +277,7 @@ function Remote() {
                         muted
                     />
                 </div>
-                }
+
             </Box>
         </Container>
     )
