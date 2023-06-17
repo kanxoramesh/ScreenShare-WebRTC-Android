@@ -1,7 +1,7 @@
 import logo from './logo.svg';
 import './App.css';
 import { Container, Typography, Box } from '@mui/material';
-import Remote from './Remote';
+import Remote from './Remote.js';
 function App() {
   return (
     <Container maxWidth="sm">

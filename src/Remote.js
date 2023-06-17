@@ -37,7 +37,7 @@ const pc = new RTCPeerConnection(servers);
 const firestore = firebase.firestore();
 
 const remoteControl = firestore.collection("remoteControl");
-const myDoc = remoteControl.doc("mycallerId");
+const myDoc = remoteControl.doc("rameshremoteID");
 const offerCandidates = myDoc.collection("offer");
 const iceCandidates = myDoc.collection("iceCandidates");
 
@@ -58,22 +58,73 @@ function Remote() {
         myDoc.set({ "status": true })
     }
     const setRequestToCallee = () => {
+        remoteControl.doc(remoteId).set({
+            caller: {
+                callerId: "rameshremoteID", callerName: "Rames Pokhrel"
+            }
+        })
+        const dataChannel = pc.createDataChannel('dummy');
+        remoteControl.doc(remoteId).onSnapshot((snapshot) => {
+            const data = snapshot.data();
+            if (data?.status) {
+                //need to send offer
+                setIceAndOfferCandidates()
+
+            }
+        });
 
     }
 
-    const setIceCandidates = async () => {
+    const setIceAndOfferCandidates = async () => {
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                iceCandidates.add(event.candidate.toJSON());
+            } else {
+                // All ICE candidates have been gathered
+                console.log('ICE Gathering Complete');
+            }
+        };
 
-    }
-    const setOffer = async () => {
+        const offerDescription = await pc.createOffer();
+        await pc.setLocalDescription(offerDescription);
+        const offer = {
+            sdp: offerDescription.sdp,
+            type: offerDescription.type,
+        };
+
+        await offerCandidates.add(offer);
 
     }
 
     const callRemote = async () => {
 
     }
+    const disconnectAll = () => {
+        if (localStream) {
+            localStream.getTracks().forEach((track) => {
+                track.stop();
+            });
+            setLocalStream(null);
+        }
+        SetConnect(false)
+        setLoading(false)
+
+        remoteControl.doc(remoteId).set({
+        })
+        myDoc.update({ "status": false })
+
+    }
 
 
     const setupSources = async () => {
+        if (connect) {
+
+            disconnectAll()
+
+
+            return
+        }
+
         if (remoteId == "") {
 
             setError(true)
@@ -84,18 +135,6 @@ function Remote() {
         setStatus()
         setRequestToCallee()
 
-        if (connect) {
-
-            if (localStream) {
-                localStream.getTracks().forEach((track) => {
-                    track.stop();
-                });
-                setLocalStream(null);
-            }
-            SetConnect(false)
-            setLoading(false)
-            return
-        }
 
         setLoading(true)
         const stream = new MediaStream();
