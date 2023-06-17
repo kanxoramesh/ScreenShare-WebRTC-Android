@@ -1,4 +1,4 @@
-import { Box, Button, Container, TextField } from "@mui/material";
+import { Box, Button, Container, TextField, CircularProgress } from "@mui/material";
 import pic1 from './assets/pic1.png';
 import { useRef, useState } from "react";
 
@@ -42,6 +42,7 @@ function Remote() {
     const [localStream, setLocalStream] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isDown, setIsDown] = useState(false);
+    const [loading, setLoading] = useState(false);
 
     const setupSources = async () => {
         if (connect) {
@@ -53,20 +54,19 @@ function Remote() {
                 setLocalStream(null);
             }
             SetConnect(false)
+            setLoading(false)
             return
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-        });
-
-        stream.getTracks().forEach((track) => {
-            pc.addTrack(track, stream);
-        });
-
-        localRef.current.srcObject = stream;
-
+        setLoading(true)
+        const stream = new MediaStream();
+        pc.ontrack = (event) => {
+            setLoading(false)
+            event.streams[0].getTracks().forEach((track) => {
+                stream.addTrack(track);
+            });
+            localRef.current.srcObject = stream;
+        };
 
         pc.onconnectionstatechange = (event) => {
             if (pc.connectionState === "disconnected") {
@@ -114,15 +114,14 @@ function Remote() {
                 justifyContent="center"
                 alignItems="center">
                 <TextField id="outlined-basic" label="Remote ID" variant="outlined" style={{ marginRight: '20px' }} />
-                <Button id="connect" variant="contained" onClick={() => setupSources()}>{connect ? 'DisConnect' : "Connect"}</Button>
+                <Button id="connect" variant="contained" onClick={() => setupSources()}>{loading?"Connecting...": connect?'DisConnect' : "Connect"}</Button>
             </Box>
 
 
             <Box display="flex"
                 justifyContent="center"
                 alignItems="center">
-
-                <div 
+                {loading ? <CircularProgress color="secondary" /> : <div
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseOut={handleMouseOut}
@@ -135,6 +134,7 @@ function Remote() {
                         muted
                     />
                 </div>
+                }
             </Box>
         </Container>
     )
