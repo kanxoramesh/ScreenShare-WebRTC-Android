@@ -36,6 +36,12 @@ const servers = {
 const pc = new RTCPeerConnection(servers);
 const firestore = firebase.firestore();
 
+const remoteControl = firestore.collection("remoteControl");
+const myDoc = remoteControl.doc("mycallerId");
+const offerCandidates = myDoc.collection("offer");
+const iceCandidates = myDoc.collection("iceCandidates");
+
+
 function Remote() {
     const localRef = useRef();
     const [connect, SetConnect] = useState(false);
@@ -43,8 +49,41 @@ function Remote() {
     const [isDragging, setIsDragging] = useState(false);
     const [isDown, setIsDown] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [remoteId, setRemoteId] = useState("");
+    const [error, setError] = useState(false);
+
+
+
+    const setStatus = async () => {
+        myDoc.set({ "status": true })
+    }
+    const setRequestToCallee = () => {
+
+    }
+
+    const setIceCandidates = async () => {
+
+    }
+    const setOffer = async () => {
+
+    }
+
+    const callRemote = async () => {
+
+    }
+
 
     const setupSources = async () => {
+        if (remoteId == "") {
+
+            setError(true)
+            return
+        }
+
+        //setup status true/ client will check if remote server is ready or not
+        setStatus()
+        setRequestToCallee()
+
         if (connect) {
 
             if (localStream) {
@@ -113,8 +152,11 @@ function Remote() {
             <Box style={{ marginBottom: '20px' }} display="flex"
                 justifyContent="center"
                 alignItems="center">
-                <TextField id="outlined-basic" label="Remote ID" variant="outlined" style={{ marginRight: '20px' }} />
-                <Button id="connect" variant="contained" onClick={() => setupSources()}>{loading?"Connecting...": connect?'DisConnect' : "Connect"}</Button>
+                <TextField id="outlined-basic" label="Remote ID" error={error ? true : false} variant="outlined" style={{ marginRight: '20px' }} required onChange={(event) => {
+                    setError(false)
+                    setRemoteId(event.target.value);
+                }} />
+                <Button id="connect" variant="contained" onClick={() => setupSources()}>{loading ? "Connecting..." : connect ? 'DisConnect' : "Connect"}</Button>
             </Box>
 
 
