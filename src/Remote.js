@@ -55,7 +55,8 @@ function Remote() {
     const [error, setError] = useState(false);
     const [videoWidth, setVideoWidth] = useState(0);
     const [videoHeight, setVideoHeight] = useState(0);
-
+    const [scaleX, setScaleXFactor] = useState(0);
+    const [scaleY, setScaleYFactor] = useState(0);
 
     async function clearCollection(ref) {
         ref.onSnapshot((snapshot) => {
@@ -87,20 +88,15 @@ function Remote() {
                 var dWidth = data?.dWidth;//1080
                 var dHeight = data?.dHeight;//2260
 
-                setVideoHeight(dHeight)
-                setVideoWidth(dWidth)
+                var scaleWidth=dWidth/270
+                var scaleHeight=dHeight/584
 
-                // if (localRef.current) {
-                //     const { videoWidth, videoHeight } = localRef.current;
+                setScaleXFactor(scaleWidth)
+                setScaleYFactor(scaleHeight)
 
+                setVideoWidth(270)
+                setVideoHeight(584)
 
-                //     const scalingFactorX = dWidth / videoWidth;
-                //     const scalingFactorY = dHeight / videoHeight;
-
-
-                // }
-
-                //need to send offer
                 setIceAndOfferCandidates()
 
             }
@@ -242,26 +238,26 @@ function Remote() {
 
     const handleMouseDown = (event) => {
         setIsDown(true)
-        dataChannel.send(`${event.nativeEvent.offsetX}:${event.nativeEvent.offsetY}:ACTION_DOWN`);
+        dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_DOWN`);
     };
 
     const handleMouseMove = (event) => {
         // Handle mouse move event
         if (isDown) {
             setIsDragging(true);
-            console.log("drag", event.nativeEvent.offsetX, event.nativeEvent.offsetY)
+            console.log("drag", event.nativeEvent.offsetX*scaleX, event.nativeEvent.offsetY*scaleY)
             //sen event
-            dataChannel.send(`${event.nativeEvent.offsetX}:${event.nativeEvent.offsetY}:ACTION_MOVE`);
+            dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_MOVE`);
         }
     };
 
     const handleMouseUp = (event) => {
         if (!isDragging) {
-            console.log("click", event.nativeEvent.offsetX, event.nativeEvent.offsetY)
-            dataChannel.send(`${event.nativeEvent.offsetX}:${event.nativeEvent.offsetY}:ACTION_CLICK`);
+            console.log("click", event.nativeEvent.offsetX, event.nativeEvent.offsetY*scaleY)
+            dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_CLICK`);
 
         }
-        dataChannel.send(`${event.nativeEvent.offsetX}:${event.nativeEvent.offsetY}:ACTION_UP`);
+        dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_UP`);
 
         setIsDragging(false);
         setIsDown(false)
@@ -301,6 +297,7 @@ function Remote() {
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseOut={handleMouseOut}
+                    style={{ width: videoWidth, height: videoHeight }}
                     onMouseUp={handleMouseUp}>
                     <video
                         ref={localRef}
@@ -308,7 +305,6 @@ function Remote() {
                         playsInline
                         className="local"
                         muted
-                        style={{ width: videoWidth, height: videoHeight }}
 
                     />
                 </div>
