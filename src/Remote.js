@@ -19,6 +19,9 @@ const firebaseConfig = {
     measurementId: process.env.REACT_APP_MEASUREMENT_ID
 };
 
+const REMOTE_CONTROL = "remoteControl"
+const MY_REMOTE_ID = "rameshremoteID"
+
 firebase.initializeApp(firebaseConfig);
 
 // Initialize WebRTC
@@ -33,13 +36,27 @@ const servers = {
     ],
     iceCandidatePoolSize: 10,
 };
+
+//initialize RTC with ice servers
 const pc = new RTCPeerConnection(servers);
+
+
+
+/*
+* We use a data channel to send injected coordinates, 
+* and this also triggers the onicecandidate method. 
+* Since we don't have a local stream, the onicecandidate event hasn't been called
+*/
 const dataChannel = pc.createDataChannel("channel");
 
-const firestore = firebase.firestore();
+//we are receiving remote video only
 pc.addTransceiver('video');
-const remoteControl = firestore.collection("remoteControl");
-const myDoc = remoteControl.doc("rameshremoteID");
+
+const firestore = firebase.firestore();
+const remoteControl = firestore.collection(REMOTE_CONTROL);
+
+//put your react app remote id here. This will be used to identify while signaling 
+const myDoc = remoteControl.doc(MY_REMOTE_ID);
 const myOffer = myDoc.collection("offer");
 const myiceCandidates = myDoc.collection("iceCandidates");
 
@@ -66,6 +83,11 @@ function Remote() {
         })
     }
 
+
+    /*
+    * This will clear the previous existing data collections from firestore
+    * and set caller as ready
+    */
     const setStatus = async () => {
         await clearCollection(myOffer)
         await clearCollection(myiceCandidates)
@@ -74,13 +96,19 @@ function Remote() {
         myDoc.set({ "status": true })
         //clear previous
     }
+
+
+    /*
+    * update callee collection with caller information
+    * and listen for callee, Callee will provide signal that, he is ready and provide it's device resolution
+    */
     const setRequestToCallee = () => {
         remoteControl.doc(remoteId).set({
             caller: {
-                callerId: "rameshremoteID", callerName: "Rames Pokhrel"
+                callerId: MY_REMOTE_ID, callerName: "Rames Pokhrel"
             }
         })
-        const dataChannel = pc.createDataChannel('dummy');
+
         remoteControl.doc(remoteId).onSnapshot((snapshot) => {
             const data = snapshot.data();
             if (data?.status) {
@@ -88,8 +116,8 @@ function Remote() {
                 var dWidth = data?.dWidth;//1080
                 var dHeight = data?.dHeight;//2260
 
-                var scaleWidth=dWidth/270
-                var scaleHeight=dHeight/584
+                var scaleWidth = dWidth / 270
+                var scaleHeight = dHeight / 584
 
                 setScaleXFactor(scaleWidth)
                 setScaleYFactor(scaleHeight)
@@ -103,6 +131,7 @@ function Remote() {
         });
 
     }
+
 
     const setIceAndOfferCandidates = async () => {
         pc.onicecandidate = (event) => {
@@ -129,7 +158,12 @@ function Remote() {
         const calleeIceCandidates = remoteControl.doc(remoteId).collection("iceCandidates");
         const calleeAnswer = remoteControl.doc(remoteId).collection("answer");
 
-        const unsubscribe = remoteControl.doc(remoteId).collection("answer").onSnapshot((snapshot) => {
+
+        /*
+        * add remote description before to add remote ice candidates
+        * 
+        */
+        calleeAnswer.onSnapshot((snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     try {
@@ -159,9 +193,9 @@ function Remote() {
             });
         });
         dataChannel.addEventListener('open', event => {
-           console.log("open channel")
+            console.log("open channel")
         });
-        
+
         // Disable input when closed
         dataChannel.addEventListener('close', event => {
             console.log("close channel")
@@ -170,9 +204,10 @@ function Remote() {
 
     }
 
-    const callRemote = async () => {
 
-    }
+    /*
+    * disconnect all services
+    */
     const hangUp = async () => {
 
         pc.close();
@@ -236,28 +271,34 @@ function Remote() {
     };
 
 
+    /*
+    * dispatch key events to callee
+    * x:y:ACTION_DOWN
+    * x:y:ACTION_UP
+    * x:y:ACTION_MOVE
+    */
     const handleMouseDown = (event) => {
         setIsDown(true)
-        dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_DOWN`);
+        dataChannel.send(`${event.nativeEvent.offsetX * scaleX}:${event.nativeEvent.offsetY * scaleY}:ACTION_DOWN`);
     };
 
     const handleMouseMove = (event) => {
         // Handle mouse move event
         if (isDown) {
             setIsDragging(true);
-            console.log("drag", event.nativeEvent.offsetX*scaleX, event.nativeEvent.offsetY*scaleY)
+            console.log("drag", event.nativeEvent.offsetX * scaleX, event.nativeEvent.offsetY * scaleY)
             //sen event
-            dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_MOVE`);
+            dataChannel.send(`${event.nativeEvent.offsetX * scaleX}:${event.nativeEvent.offsetY * scaleY}:ACTION_MOVE`);
         }
     };
 
     const handleMouseUp = (event) => {
         if (!isDragging) {
-            console.log("click", event.nativeEvent.offsetX, event.nativeEvent.offsetY*scaleY)
-            dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_CLICK`);
+            console.log("click", event.nativeEvent.offsetX, event.nativeEvent.offsetY * scaleY)
+            dataChannel.send(`${event.nativeEvent.offsetX * scaleX}:${event.nativeEvent.offsetY * scaleY}:ACTION_CLICK`);
 
         }
-        dataChannel.send(`${event.nativeEvent.offsetX*scaleX}:${event.nativeEvent.offsetY*scaleY}:ACTION_UP`);
+        dataChannel.send(`${event.nativeEvent.offsetX * scaleX}:${event.nativeEvent.offsetY * scaleY}:ACTION_UP`);
 
         setIsDragging(false);
         setIsDown(false)
