@@ -89,10 +89,10 @@ function Remote() {
     * and set caller as ready
     */
     const setStatus = async () => {
-        await clearCollection(myOffer)
-        await clearCollection(myiceCandidates)
-        await clearCollection(remoteControl.doc(remoteId).collection("answer"))
-        await clearCollection(remoteControl.doc(remoteId).collection("iceCandidates"))
+         await clearCollection(myOffer)
+         await clearCollection(myiceCandidates)
+         await clearCollection(remoteControl.doc(remoteId).collection("answer"))
+         await clearCollection(remoteControl.doc(remoteId).collection("iceCandidates"))
         myDoc.set({ "status": true })
         //clear previous
     }
@@ -137,7 +137,11 @@ function Remote() {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 var a = event.candidate.toJSON()
+                try{
                 myiceCandidates.add(a);
+                }catch(e){
+                    console.log("djjdjd",e)
+                }
             } else {
                 // All ICE candidates have been gathered
                 console.log('ICE Gathering Complete');
