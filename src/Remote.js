@@ -2,11 +2,8 @@ import { Box, Button, Container, TextField, CircularProgress } from "@mui/materi
 import pic1 from './assets/pic1.png';
 import { useRef, useState } from "react";
 
-import firebase from 'firebase/compat/app';
-import 'firebase/compat/firestore';
-import 'firebase/compat/auth';
-
-import { ReactComponent as HangupIcon } from "./assets/hangup.svg";
+import { initializeApp } from 'firebase/app';
+import { collection, query, addDoc, getDocs, setDoc, deleteDoc, doc, onSnapshot, getFirestore } from "firebase/firestore";
 
 
 const firebaseConfig = {
@@ -22,7 +19,8 @@ const firebaseConfig = {
 const REMOTE_CONTROL = "remoteControl"
 const MY_REMOTE_ID = "rameshremoteID"
 
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Initialize WebRTC
 const servers = {
@@ -32,6 +30,11 @@ const servers = {
                 "stun:stun1.l.google.com:19302",
                 "stun:stun2.l.google.com:19302",
             ],
+        },
+        {
+            urls:  process.env.REACT_APP_TURN_URL,
+            username:  process.env.REACT_APP_TURN_USERNAME,
+            credential:  process.env.REACT_APP_TURN_PASSWORD,
         },
     ],
     iceCandidatePoolSize: 10,
@@ -52,14 +55,12 @@ const dataChannel = pc.createDataChannel("channel");
 //we are receiving remote video only
 pc.addTransceiver('video');
 
-const firestore = firebase.firestore();
-const remoteControl = firestore.collection(REMOTE_CONTROL);
+const remoteControl = collection(db, REMOTE_CONTROL);
 
 //put your react app remote id here. This will be used to identify while signaling 
-const myDoc = remoteControl.doc(MY_REMOTE_ID);
-const myOffer = myDoc.collection("offer");
-const myiceCandidates = myDoc.collection("iceCandidates");
-
+const myDoc = doc(db, REMOTE_CONTROL, MY_REMOTE_ID);
+const myOffer = collection(myDoc, "offer")
+const myiceCandidates = collection(myDoc, "iceCandidates")
 
 function Remote() {
     const localRef = useRef();
@@ -76,10 +77,12 @@ function Remote() {
     const [scaleY, setScaleYFactor] = useState(0);
 
     async function clearCollection(ref) {
-        ref.onSnapshot((snapshot) => {
-            snapshot.docs.forEach((doc) => {
-                ref.doc(doc.id).delete()
-            })
+        const querySnapshot = await getDocs(ref);
+        querySnapshot.forEach((docc) => {
+            if (docc.exists)
+                deleteDoc(doc(ref, docc.id));
+            //await deleteDoc(doc(db, "cities", "DC"));
+
         })
     }
 
@@ -89,11 +92,12 @@ function Remote() {
     * and set caller as ready
     */
     const setStatus = async () => {
-         await clearCollection(myOffer)
-         await clearCollection(myiceCandidates)
-         await clearCollection(remoteControl.doc(remoteId).collection("answer"))
-         await clearCollection(remoteControl.doc(remoteId).collection("iceCandidates"))
-        myDoc.set({ "status": true })
+        await clearCollection(myOffer)
+        await clearCollection(myiceCandidates)
+        await clearCollection(collection(db, REMOTE_CONTROL, remoteId, "answer"))
+
+        await clearCollection(collection(db, REMOTE_CONTROL, remoteId, "iceCandidates"))
+        setDoc(myDoc, { "status": true })
         //clear previous
     }
 
@@ -103,18 +107,18 @@ function Remote() {
     * and listen for callee, Callee will provide signal that, he is ready and provide it's device resolution
     */
     const setRequestToCallee = () => {
-        remoteControl.doc(remoteId).set({
+
+        setDoc(doc(db, REMOTE_CONTROL, remoteId), {
             caller: {
                 callerId: MY_REMOTE_ID, callerName: "Rames Pokhrel"
             }
         })
 
-        remoteControl.doc(remoteId).onSnapshot((snapshot) => {
-            const data = snapshot.data();
-            if (data?.status) {
+        onSnapshot(doc(db, REMOTE_CONTROL, remoteId), (doc) => {
+            if (doc?.data()?.status) {
                 //update video width height
-                var dWidth = data?.dWidth;//1080
-                var dHeight = data?.dHeight;//2260
+                var dWidth = doc?.data()?.dWidth;//1080
+                var dHeight = doc?.data()?.dHeight;//2260
 
                 var scaleWidth = dWidth / 270
                 var scaleHeight = dHeight / 584
@@ -122,8 +126,8 @@ function Remote() {
                 setScaleXFactor(scaleWidth)
                 setScaleYFactor(scaleHeight)
 
-                setVideoWidth(270)
-                setVideoHeight(584)
+                // setVideoWidth(270)
+                // setVideoHeight(584)
 
                 setIceAndOfferCandidates()
 
@@ -134,13 +138,14 @@ function Remote() {
 
 
     const setIceAndOfferCandidates = async () => {
-        pc.onicecandidate = (event) => {
+
+        pc.onicecandidate = async (event) => {
             if (event.candidate) {
                 var a = event.candidate.toJSON()
-                try{
-                myiceCandidates.add(a);
-                }catch(e){
-                    console.log("djjdjd",e)
+                try {
+                    addDoc(myiceCandidates, a);
+                } catch (e) {
+                    console.log("djjdjd", e)
                 }
             } else {
                 // All ICE candidates have been gathered
@@ -155,19 +160,20 @@ function Remote() {
             type: offerDescription.type,
         };
 
-        await myOffer.add(offer);
-
+        await addDoc(myOffer, offer);
 
         //listen for callee
-        const calleeIceCandidates = remoteControl.doc(remoteId).collection("iceCandidates");
-        const calleeAnswer = remoteControl.doc(remoteId).collection("answer");
+        const calleeIceCandidates = collection(db, REMOTE_CONTROL, remoteId, "iceCandidates");
+        const calleeAnswer = collection(db, REMOTE_CONTROL, remoteId, "answer");
 
 
         /*
         * add remote description before to add remote ice candidates
         * 
         */
-        calleeAnswer.onSnapshot((snapshot) => {
+
+
+        onSnapshot(query(calleeAnswer), (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     try {
@@ -175,7 +181,7 @@ function Remote() {
                         const candidate = new RTCSessionDescription(a);
                         pc.setRemoteDescription(candidate)
                             .then(() => {
-                                calleeIceCandidates.onSnapshot((snapshot) => {
+                                onSnapshot(query(calleeIceCandidates), (snapshot) => {
                                     snapshot.docChanges().forEach((change) => {
                                         if (change.type === "added") {
                                             var a = change.doc.data()
@@ -225,9 +231,9 @@ function Remote() {
         setLoading(false)
         await clearCollection(myOffer)
         await clearCollection(myiceCandidates)
-        remoteControl.doc(remoteId).set({
-        })
-        myDoc.update({ "status": false })
+
+        setDoc(myDoc, { "status": false }, { merge: true })
+        setDoc(doc(db, REMOTE_CONTROL, remoteId), {})
 
         window.location.reload();
     };
