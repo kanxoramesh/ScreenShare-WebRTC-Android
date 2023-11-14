@@ -32,16 +32,17 @@ const servers = {
             ],
         },
         {
-            urls:  process.env.REACT_APP_TURN_URL,
-            username:  process.env.REACT_APP_TURN_USERNAME,
-            credential:  process.env.REACT_APP_TURN_PASSWORD,
+            urls: [process.env.REACT_APP_TURN_URL],
+            username: process.env.REACT_APP_TURN_USERNAME,
+            credential: process.env.REACT_APP_TURN_PASSWORD,
         },
     ],
     iceCandidatePoolSize: 10,
 };
 
-//initialize RTC with ice servers
+// initialize RTC with ice servers
 const pc = new RTCPeerConnection(servers);
+
 
 
 
