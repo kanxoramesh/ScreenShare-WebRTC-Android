@@ -35,7 +35,7 @@ const firebaseConfig = {
 yarn install
 ```
 
-2. set up firebase and TURN server information in ```.env``` file 
+2. set up firebase and TURN server information in ```.env.local``` file 
 ```
 
 REACT_APP_API_KEY=

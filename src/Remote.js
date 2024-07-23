@@ -31,11 +31,11 @@ const servers = {
                 "stun:stun2.l.google.com:19302",
             ],
         },
-        {
-            urls: [process.env.REACT_APP_TURN_URL],
-            username: process.env.REACT_APP_TURN_USERNAME,
-            credential: process.env.REACT_APP_TURN_PASSWORD,
-        },
+        // {
+        //     urls: [process.env.REACT_APP_TURN_URL],
+        //     username: process.env.REACT_APP_TURN_USERNAME,
+        //     credential: process.env.REACT_APP_TURN_PASSWORD,
+        // },
     ],
     iceCandidatePoolSize: 10,
 };
