@@ -73,6 +73,11 @@ REACT_APP_TURN_PASSWORD=
 yarn start
 
 ```
+### Working Devices
+1. Xiaomi all devices
+2. Samsung all Devices
+3. Chrome OS (Remote Screen Sharing Only)
+4. 
 
 Thanks 
 
