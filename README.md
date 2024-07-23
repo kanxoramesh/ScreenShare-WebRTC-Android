@@ -33,7 +33,15 @@ const firebaseConfig = {
 ### Firebase Firestore Permission
 Update permission of firestore
 ```
+rules_version = '2';
 
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write;
+    }
+  }
+}
 
 ```
 ## RUN Locally
