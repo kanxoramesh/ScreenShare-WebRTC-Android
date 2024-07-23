@@ -11,7 +11,9 @@ Test them in same NETWORK
 [Mobile Application](https://drive.google.com/file/d/163FOSWQnE5GbyQ6-0GjP41xUWiX_eG44/view?usp=sharing)
 
 ## Firebase setup
-Firebase is used as Signaling Server. Create Firebase Project and create Webapp under it.
+Firebase is used as Signaling Server. 
+## Create WEB APP
+Create Firebase Project and create Webapp under it.
 
 get following params
 
@@ -28,7 +30,12 @@ const firebaseConfig = {
 };
 
 ```
+### Firebase Firestore Permission
+Update permission of firestore
+```
 
+
+```
 ## RUN Locally
 1. Install dependencies
 ```
